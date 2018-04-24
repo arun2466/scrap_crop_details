@@ -27,8 +27,53 @@ var q = `
     PRIMARY KEY (id) );
 `;
 
+
+createCropsTable = ( callback ) => {
+  console.log('-start----createCropsTable')
+  var q1 = `SHOW TABLES FROM ${DATABASE_NAME} LIKE 'crops'`;
+
+  CONNECTION.query(q1, function(err, results) {
+    if (err) {
+      console.log('Error occurs')
+      console.log(err)
+    } else {
+      console.log(err)
+      console.log(results)
+      if( results.length == 0 ){
+
+        var q2 = `
+          use ${DATABASE_NAME};
+          CREATE TABLE crops (
+            id int NOT NULL AUTO_INCREMENT,
+            website_id int,
+            crop_name varchar(255),
+            cash_price varchar(255),
+            updated_on DATETIME,
+            PRIMARY KEY (id),
+            FOREIGN KEY (website_id) REFERENCES websites(id)
+            );
+        `;
+
+        CONNECTION.query(q2, function(err, results) {
+          if (err) {
+            console.log(err)
+            process.exit();
+          } else {
+            console.log('crops table created!!!')
+            callback();
+          }
+        });
+      } else{
+        callback();
+      }
+    }
+  })
+
+}
+
 insertWebsites = ( websites, callback ) => {
   if( websites.length == 0 ){
+    console.log('all websites inserted!!')
     callback();
   } else {
     let row = websites[0];
@@ -62,7 +107,9 @@ CONNECTION.query(checkDB, function(err, results) {
       console.log('db already exists')
       insertWebsites( websitesList, () => {
         console.log('all websites inserted!!')
-        process.exit();
+        createCropsTable( () => {
+          process.exit();
+        });
       })
     } else {
       CONNECTION.query(q, function(err, results) {
@@ -70,10 +117,11 @@ CONNECTION.query(checkDB, function(err, results) {
           console.log(err)
           process.exit();
         } else {
+          console.log('db created!!!')
           insertWebsites( websitesList, () => {
-            console.log('db created!!!')
-            console.log('all websites inserted!!')
-            process.exit();
+            createCropsTable( () => {
+              process.exit();
+            });
           })
         }
       });
