@@ -22,7 +22,7 @@ var q = `
     website varchar(255),
     website_url varchar(255),
     crops_url varchar(255),
-    scrap_status int,
+    scrap_status int DEFAULT 0,
     updated_on DATETIME,
     PRIMARY KEY (id) );
 `;
