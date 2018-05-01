@@ -46,8 +46,16 @@ createCropsTable = ( callback ) => {
           CREATE TABLE crops (
             id int NOT NULL AUTO_INCREMENT,
             website_id int,
+
             crop_name varchar(255),
+            delivery_start varchar(255),
+            delivery_end varchar(255),
+            basis_month varchar(255),
+            future_price varchar(255),
+            basis varchar(255),
             cash_price varchar(255),
+            future_change varchar(255),
+
             updated_on DATETIME,
             PRIMARY KEY (id),
             FOREIGN KEY (website_id) REFERENCES websites(id)

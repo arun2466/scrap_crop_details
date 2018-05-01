@@ -14,29 +14,30 @@ let scraper = require('./website_scraper.js');
 
 const url_tags = "http://www.y8.com/tags";
 
-saveGame = (tag_game_id, data, callback) => {
-  selectMysql('games', {name: data.name, url: data.url }, (status, res) => {
-    if( status == false ){
-      console.log('Game is already scraped!!.. skipping insertion');
-      callback();
-    } else{
-      let INSERTDATA = {
-        tag_game_id: tag_game_id,
-        name: data.name,
-        description: data.description,
-        url: data.url,
-        image: data.image,
-        swf: data.swf,
-        gameControl: data.gameControl,
-        gif: data.gif
-      }
-      console.log(INSERTDATA)
-      insertMysql('games', INSERTDATA, (insertStatus, res) => {
-        callback();
-      })
+saveCrops = ( website, data, callback) => {
+  if (data.length == 0) {
+    callback('all are done')
+  } else {
+    row = data[0];
+    data.splice(0, 1);
+    let INSERTDATA = {
+      basis: row.basis || '',
+      basis_month: row.basis_month || '',
+      cash_price: row.cash_price || '',
+      crop_name: row.crop_name || '',
+      delivery_end: row.delivery_end || '',
+      delivery_start: row.delivery_start || '',
+      future_change: row.future_change || '',
+      future_price: row.future_price || '',
+      website_id: website.id
     }
-  })
+    insertMysql('crops', INSERTDATA, (insertStatus, res) => {
+      saveCrops(website, data, callback)
+    })
+  }
 }
+
+
 
 scrapAllWebsites = ( websites, callback ) => {
   console.log('\b\b***************************************************');
@@ -50,36 +51,26 @@ scrapAllWebsites = ( websites, callback ) => {
     let website_id = row.id;
     let url = row.crops_url;
     console.log(website_id + ' ----- '+ row.website)
-
     row.url = row.crops_url;
-
-
     scraper( row, function(data) {
-        console.log('****SUCCESS OCCURS******');
-        console.log("Results:", data);
-        console.log('----');
+      console.log('****SUCCESS OCCURS******');
+      console.log("Results : ", data.length);
+      updateTable('websites', {scrap_status:1}, {id: row.id}, ( status, res) => {
+        if( data.length > 0 ){
+          saveCrops( row, data, () => {
+            scrapAllWebsites( websites, callback )
+          })
+        }else{
+          scrapAllWebsites( websites, callback )
+        }
+      })
     },function(e){
         console.log('****ERROR OCCURS******');
         console.log(e);
+        updateTable('websites', {scrap_status:1}, {id: row.id}, ( status, res) => {
+          scrapAllWebsites( websites, callback )
+        })
     });
-
-    // GENERIC.getHtml(game_url, (status, data) => {
-    //   if (status == 'error') {
-    //     scrapAllGames( games, callback);
-    //   } else {
-    //     let gameDetails = GENERIC.extractGameDetailsFromDom(data);
-    //     if( gameDetails.name == ''){
-    //       callback()
-    //     }else{
-    //       gameDetails.link = game_url;
-    //       saveGame( tag_game_id, gameDetails, () => {
-    //         updateTable('tag_games', {status_scrap:1}, {id: tag_game_id}, ( status, res) => {
-    //           scrapAllGames( games, callback)
-    //         })
-    //       })
-    //     }
-    //   }
-    // })
   }
 }
 
@@ -87,13 +78,16 @@ start = () => {
   selectMysql('websites', {scrap_status: 0}, (status, res) => {
     if( status == false ){
       console.log('Some error occurs!!');
+      process.exit(0);
     } else{
       console.log('Pending to scrap - ' +  res.length );
       if( res.length == 0 ){
-        console.log('0 games to process for games!!');
+        console.log('no crop website with scrap_status = 0 !!');
+        process.exit(0);
       }else{
         scrapAllWebsites( res, () => {
           console.log('All websites are processed!!');
+          process.exit(0);
         })
       }
     }
