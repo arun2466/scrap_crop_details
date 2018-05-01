@@ -14,3 +14,17 @@ replace "root" & "arun" with your username and password
 ```
 node db.js
 ```
+
+
+### start scarping
+```
+node scrap.js
+```
+
+### Admin panel
+
+```
+change host, user, pass, db on scrap_crop_details/admin/c-database.php
+
+open /scrap_crop_details/admin/index.php to view scraping details website wise
+```

@@ -1,94 +1,138 @@
 <?php
-    class DATABASE
-    {
-        var $hostname;
-        var $user;
-        var $password;
-        var $db_name;
-        var $dbh;
 
-        function __construct(){
-            $localhost = false;
-            if( $localhost == true ){
-                $this->hostname='localhost';
-                $this->user="root";
-                $this->password="";
-            }else{
-                $this->hostname='';
-                $this->user="";
-                $this->password="";
-            }
-            $this->db_name="crops";
-            $this->dbh=mysql_connect($this->hostname, $this->user, $this->password) or die("Unable to connect to MySQL");
-            $this->conn = mysql_select_db($this->db_name, $this->dbh) or die("Could not select db");
-        }
-        function __destruct(){
-            if( $this->dbh ){
-                mysql_close($this->dbh);
-            }
-        }
-        public static function runQuery($query){
-            return mysql_query($query);
-        }
-        public static function numRows($result){  return mysql_num_rows($result); }
-        public static function fetchRow($result){ return mysql_fetch_assoc($result);  }
-        public static function fetchRows($result){    while($row=mysql_fetch_assoc($result)){ $row_s[]=$row;  }   return  $row_s; }
-        public static function insertQuery( $tableName, $insertDataArray ){
-            $return = false;
-            $insertQuery = "INSERT INTO $tableName ";
-            if( is_array($insertDataArray) && sizeof($insertDataArray) > 0 ){
-                $fieldsString = '';
-                $fieldsValString = '';
-                foreach( $insertDataArray as $field => $fieldVal ){
+$host = "localhost";
+$user = "root";
+$pass = "arun";
+$db = "crops";
 
-                    if( $tableName == 'cache_data'){
-                        $fieldVal =  mysql_real_escape_string( $fieldVal );
-                    }else{
-                        $fieldVal = strtolower( mysql_real_escape_string( $fieldVal ) );
-                    }
+define("MYSQL_CONN_ERROR", "Unable to connect to database.");
+mysqli_report(MYSQLI_REPORT_STRICT);
 
-                    if( $fieldsString == ''){
-                        $fieldsString = $field;
-                    }else{
-                        $fieldsString = $fieldsString.','.$field;
-                    }
+class Database {
+	private $_connection;
+	public static $_instance; //The single instance
+	private $_host = "";
+	private $_username = "";
+	private $_password = "";
+	private $_database = "";
+	public $tdb = '';
+	/*
+		    Get an instance of the Database
+		    @return Instance
+	*/
+	public static function getInstance() {
+		if (!self::$_instance) {
+			// If no instance then make one
+			self::$_instance = new self();
+		}
+		return self::$_instance;
+	}
+	// Constructor
+	public function __construct() {
 
-                    if( $fieldsValString == ''){
-                        $fieldsValString = "'$fieldVal'";
-                    }else{
-                        $fieldsValString = $fieldsValString.",'$fieldVal'";
-                    }
-                }
-                $insertQuery = $insertQuery."($fieldsString) VALUES ($fieldsValString)";
-                if( self::runQuery($insertQuery) ){
-                    $return = true;
-                }
-            }
-            return $return;
-        }
-        public static function updateBySingleWhere( $tableName, $whereField, $whereFieldVal, $updateData ){
-            $return = false;
-            $updateQuery = "UPDATE $tableName SET ";
-            if( is_array($updateData) && sizeof($updateData) > 0 ){
+		global $host;
+		global $user;
+		global $pass;
+		global $db;
+		$this->_host = $host;
+		$this->_username = $user;
+		$this->_password = $pass;
+		$this->_database = $db;
 
-                $updateFieldString = '';
-                foreach( $updateData as $field => $fieldVal ){
-                    $fieldVal = strtolower( mysql_real_escape_string($fieldVal) );
-                    if( $updateFieldString == '' ){
-                        $updateFieldString = $field."='$fieldVal'";
-                    }else{
-                        $updateFieldString = $updateFieldString.", $field='$fieldVal' ";
-                    }
-                }
+		try {
+			$this->_connection = new mysqli($this->_host, $this->_username, $this->_password, $this->_database);
+		} catch (Exception $e) {
+			echo $e->getMessage();
+			die;
+		}
+		// Error handling
+		// if (mysqli_connect_error()) {
+		// 	trigger_error("Failed to conencto to MySQL: " . mysql_connect_error(),
+		// 		E_USER_ERROR);
+		// }
+	}
+	// Magic method clone is empty to prevent duplication of connection
+	private function __clone() {}
+	// Get mysqli connection
+	public function getConnection() {
+		return $this->_connection;
+	}
 
-                $updateQuery = $updateQuery."$updateFieldString WHERE $whereField='$whereFieldVal' ";
-                if( self::runQuery($updateQuery) ){
-                    $return = true;
-                }
-            }
-            return $return;
-        }
+	public static function DBescapeString($string) {
+		$db = self::getInstance();
+		$mysqli = $db->getConnection();
+		return mysqli_real_escape_string($mysqli, $string);
+	}
+	public static function DBrunQuery($query) {
+		$db = self::getInstance();
+		$mysqli = $db->getConnection();
+		return $mysqli->query($query);
+	}
+	public static function DBnumRows($result) {return mysqli_num_rows($result);}
+	public static function DBfetchRow($result) {return mysqli_fetch_assoc($result);}
+	public static function DBfetchRows($result) {
+		$row_s = array();
+		while ($row = mysqli_fetch_assoc($result)) {
+			$row_s[] = $row;
+		}
+		return $row_s;
+	}
+	public static function DBinsertQuery($tableName, $insertDataArray) {
+		$db = self::getInstance();
+		$mysqli = $db->getConnection();
 
-    }
-    // $databaseObj = new DATABASE();
+		$return = false;
+		$insertQuery = "INSERT INTO $tableName ";
+		if (is_array($insertDataArray) && sizeof($insertDataArray) > 0) {
+			$fieldsString = '';
+			$fieldsValString = '';
+			foreach ($insertDataArray as $field => $fieldVal) {
+
+				$fieldVal = mysqli_real_escape_string($mysqli, $fieldVal);
+
+				if ($fieldsString == '') {
+					$fieldsString = $field;
+				} else {
+					$fieldsString = $fieldsString . ',' . $field;
+				}
+
+				if ($fieldsValString == '') {
+					$fieldsValString = "'$fieldVal'";
+				} else {
+					$fieldsValString = $fieldsValString . ",'$fieldVal'";
+				}
+			}
+			$insertQuery = $insertQuery . "($fieldsString) VALUES ($fieldsValString)";
+			if (self::DBrunQuery($insertQuery)) {
+				$return = true;
+			}
+		}
+		return $return;
+	}
+	public static function DBupdateBySingleWhere($tableName, $whereField, $whereFieldVal, $updateData) {
+		$db = self::getInstance();
+		$mysqli = $db->getConnection();
+		$return = false;
+		$updateQuery = "UPDATE $tableName SET ";
+		if (is_array($updateData) && sizeof($updateData) > 0) {
+
+			$updateFieldString = '';
+			foreach ($updateData as $field => $fieldVal) {
+				$fieldVal = mysqli_real_escape_string($mysqli, $fieldVal);
+				if ($updateFieldString == '') {
+					$updateFieldString = $field . "='$fieldVal'";
+				} else {
+					$updateFieldString = $updateFieldString . ", $field='$fieldVal' ";
+				}
+			}
+
+			$updateQuery = $updateQuery . "$updateFieldString WHERE $whereField='$whereFieldVal' ";
+			if (self::DBrunQuery($updateQuery)) {
+				$return = true;
+			}
+		}
+		return $return;
+	}
+}
+$t = new Database();
 ?>
